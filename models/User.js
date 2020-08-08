@@ -1,12 +1,12 @@
+const userCollection = require("../db").collection("users");
 const validator = require("validator");
-const { throws } = require("assert");
 
 let User = function (data) {
   this.data = data;
   this.errors = [];
 };
 
-User.prototype.cleanUp() = function () {
+User.prototype.cleanUp = function () {
   if (typeof this.data.username != "string") {
     this.data.username = "";
   }
@@ -68,8 +68,9 @@ User.prototype.register = function () {
   this.cleanUp();
   this.validate();
 
-  //Step #2 Only if there are no validation errors
-  //then save the user data into database
+  if (!this.errors.length) {
+    userCollection.insertOne(this.data);
+  }
 };
 
 module.exports = User;

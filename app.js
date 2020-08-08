@@ -1,6 +1,24 @@
 const express = require("express");
+const session = require("express-session");
+const MongoStore = require("connect-mongo")(session);
+const flash = require("connect-flash");
 const router = require("./router");
 const app = express();
+
+let sessionOptions = session({
+  secret: "Javascript is sooooooooooooooooooooo cool",
+  store: new MongoStore({ client: require("./db") }),
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 1000 * 60 * 60 * 24,
+    httpOnly: true,
+  },
+});
+
+app.use(sessionOptions);
+
+app.use(flash());
 
 app.use(express.urlencoded({ extended: false }));
 

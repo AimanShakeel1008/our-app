@@ -2,7 +2,6 @@ const express = require("express");
 const session = require("express-session");
 const MongoStore = require("connect-mongo")(session);
 const flash = require("connect-flash");
-const router = require("./router");
 const app = express();
 
 let sessionOptions = session({
@@ -19,6 +18,13 @@ let sessionOptions = session({
 app.use(sessionOptions);
 
 app.use(flash());
+
+app.use(function (req, res, next) {
+  res.locals.user = req.session.user;
+  next();
+});
+
+const router = require("./router");
 
 app.use(express.urlencoded({ extended: false }));
 

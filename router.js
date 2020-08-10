@@ -15,6 +15,14 @@ router.post("/login", userController.login);
 
 router.post("/logout", userController.logout);
 
+//prifle related routes
+
+router.get(
+  "/profile/:username",
+  userController.ifUserExists,
+  userController.profilePostsScreen
+);
+
 //post related routes
 
 router.get(

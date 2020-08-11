@@ -1,13 +1,15 @@
 const { ObjectID } = require("mongodb");
+const sanitizeHTML = require("sanitize-html");
 const User = require("./User");
 
 const postsCollection = require("../db").db().collection("posts");
 const ObjectId = require("mongodb").ObjectID;
 
-let Post = function (data, userId) {
+let Post = function (data, userId, requestedPostId) {
   this.data = data;
   this.errors = [];
   this.userId = userId;
+  this.requestedPostId = requestedPostId;
 };
 
 Post.prototype.cleanup = function () {
@@ -20,8 +22,14 @@ Post.prototype.cleanup = function () {
 
   //get rid of any bogus properties
   this.data = {
-    title: this.data.title.trim(),
-    body: this.data.body.trim(),
+    title: sanitizeHTML(this.data.title.trim(), {
+      allowedTags: [],
+      allowedAttributes: [],
+    }),
+    body: sanitizeHTML(this.data.body.trim(), {
+      allowedTags: [],
+      allowedAttributes: [],
+    }),
     createdDate: new Date(),
     author: ObjectId(this.userId),
   };
@@ -43,8 +51,8 @@ Post.prototype.create = function () {
     if (!this.errors.length) {
       postsCollection
         .insertOne(this.data)
-        .then(() => {
-          resolve();
+        .then((info) => {
+          resolve(info.ops[0]._id);
         })
         .catch(() => {
           this.errors.push("Please try again later.");
@@ -56,7 +64,40 @@ Post.prototype.create = function () {
   });
 };
 
-Post.reusablePostQuery = function (uniqueOperations) {
+Post.prototype.update = function () {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let post = await Post.findSingleById(this.requestedPostId, this.userId);
+      if (post.isVisitorOwner) {
+        //actually update the db
+        let status = await this.actuallyUpdate();
+        resolve(status);
+      } else {
+        reject();
+      }
+    } catch {
+      reject();
+    }
+  });
+};
+
+Post.prototype.actuallyUpdate = function () {
+  return new Promise(async (resolve, reject) => {
+    this.cleanup();
+    this.validate();
+    if (!this.errors.length) {
+      await postsCollection.findOneAndUpdate(
+        { _id: new ObjectID(this.requestedPostId) },
+        { $set: { title: this.data.title, body: this.data.body } }
+      );
+      resolve("success");
+    } else {
+      resolve("failure");
+    }
+  });
+};
+
+Post.reusablePostQuery = function (uniqueOperations, visitorId) {
   return new Promise(async function (resolve, reject) {
     let aggOperations = uniqueOperations.concat([
       {
@@ -72,6 +113,7 @@ Post.reusablePostQuery = function (uniqueOperations) {
           title: 1,
           body: 1,
           createdDate: 1,
+          authorId: "$author",
           author: { $arrayElemAt: ["$authorDocument", 0] },
         },
       },
@@ -79,6 +121,7 @@ Post.reusablePostQuery = function (uniqueOperations) {
     let posts = await postsCollection.aggregate(aggOperations).toArray();
     //clean up author property in each post object
     posts = posts.map(function (post) {
+      post.isVisitorOwner = post.authorId.equals(visitorId);
       post.author = {
         username: post.author.username,
         avatar: new User(post.author, true),
@@ -89,15 +132,16 @@ Post.reusablePostQuery = function (uniqueOperations) {
   });
 };
 
-Post.findSingleById = function (id) {
+Post.findSingleById = function (id, visitorId) {
   return new Promise(async function (resolve, reject) {
     if (typeof id != "string" || !ObjectID.isValid(id)) {
       reject();
       return;
     }
-    let posts = await Post.reusablePostQuery([
-      { $match: { _id: new ObjectID(id) } },
-    ]);
+    let posts = await Post.reusablePostQuery(
+      [{ $match: { _id: new ObjectID(id) } }],
+      visitorId
+    );
     if (posts.length) {
       resolve(posts[0]);
     } else {
@@ -111,6 +155,22 @@ Post.findByAuthorId = function (authorId) {
     { $match: { author: authorId } },
     { $sort: { createdDate: -1 } },
   ]);
+};
+
+Post.delete = function (postIdToDelete, currentUserId) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let post = await Post.findSingleById(postIdToDelete, currentUserId);
+      if (post.isVisitorOwner) {
+        await postsCollection.deleteOne({ _id: new ObjectID(postIdToDelete) });
+        resolve();
+      } else {
+        reject();
+      }
+    } catch {
+      reject();
+    }
+  });
 };
 
 module.exports = Post;

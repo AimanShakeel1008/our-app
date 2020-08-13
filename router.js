@@ -16,7 +16,7 @@ router.post("/login", userController.login);
 
 router.post("/logout", userController.logout);
 
-//prifle related routes
+//profle related routes
 
 router.get(
   "/profile/:username",

@@ -102,7 +102,10 @@ exports.home = async function (req, res) {
 
     let posts = await Post.getFeed(req.session.user._id);
 
-    res.render("home-dashboard", { posts: posts, title: "Home" });
+    res.render("home-dashboard", {
+      posts: posts,
+      title: "Home",
+    });
   } else {
     res.render("home-guest", {
       regErrors: req.flash("regErrors"),

@@ -142,9 +142,7 @@ User.prototype.register = function () {
 };
 
 User.prototype.getAvatar = function () {
-  console.log("email:" + this.data.email);
   this.avatar = `https://gravatar.com/avatar/${md5(this.data.email)}?s=128`;
-  console.log("avatar:" + this.avatar);
 };
 
 User.findByUsername = function (username) {
@@ -172,6 +170,22 @@ User.findByUsername = function (username) {
       .catch(function () {
         reject();
       });
+  });
+};
+
+User.doesEmailExist = function (email) {
+  return new Promise(async function (resolve, reject) {
+    if (typeof email != "string") {
+      resolve(false);
+      return;
+    }
+
+    let user = await userCollection.findOne({ email: email });
+    if (user) {
+      resolve(true);
+    } else {
+      resolve(false);
+    }
   });
 };
 

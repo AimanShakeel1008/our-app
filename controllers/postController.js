@@ -14,13 +14,20 @@ exports.create = function (req, res) {
   post
     .create()
     .then(function (newId) {
-      sendgrid.send({
-        to: "aimanshakeel1008@gmail.com",
-        from: "test@test.com",
-        subject: "Congrats on Creating a New Post.",
-        text: "You did a great job of creating a post.",
-        html: "You did a <strong>great</strong> job of c reating a psot.",
-      });
+      sendgrid
+        .send({
+          to: "aimaimankhan@gmail.com",
+          from: "aimanshakeel1008@gmail.com",
+          subject: "Congrats on Creating a New Post.",
+          text: "You did a great job of creating a post.",
+          html: "You did a <strong>great</strong> job of creating a post.",
+        })
+        .then(() => {
+          console.log("mail sent");
+        })
+        .catch((error) => {
+          console.log(error.response.body);
+        });
       req.flash("success", "New post successfully created.");
       req.session.save(() => res.redirect(`/post/${newId}`));
     })

@@ -14,7 +14,7 @@ exports.create = function (req, res) {
       req.flash("success", "New post successfully created.");
       req.session.save(() => res.redirect(`/post/${newId}`));
     })
-    .catch(function () {
+    .catch(function (errors) {
       errors.forEach((error) => req.flash("errors", error));
       req.session.save(() => res.redirect("/create-post"));
     });
@@ -96,5 +96,27 @@ exports.search = function (req, res) {
     })
     .catch(() => {
       res.json([]);
+    });
+};
+
+exports.apiCreate = function (req, res) {
+  let post = new Post(req.body, req.apiUser._id);
+  post
+    .create()
+    .then(function (newId) {
+      res.json("congrats");
+    })
+    .catch(function (errors) {
+      res.json(errors);
+    });
+};
+
+exports.apiDelete = function (req, res) {
+  Post.delete(req.params.id, req.apiUser._id)
+    .then(() => {
+      res.json("Success.");
+    })
+    .catch(() => {
+      res.json("No persmission.");
     });
 };
